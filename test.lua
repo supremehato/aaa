@@ -55,8 +55,67 @@ spawn(function()
     end
 end)
 
--- Track visited servers
-local visitedServers = {[game.JobId] = true}
+-- 📁 FILE STORAGE FOR VISITED SERVERS
+local visitedServers = {}
+local VISITED_SERVERS_FILE = "visited_servers.txt"
+
+-- Load existing visited servers from file
+local function loadVisitedServers()
+    local success, data = pcall(function()
+        return readfile(VISITED_SERVERS_FILE)
+    end)
+    
+    if success and data then
+        for serverId in string.gmatch(data, "([^,]+)") do
+            visitedServers[serverId] = true
+        end
+        print("📁 Loaded " .. #visitedServers .. " visited servers from file")
+    else
+        print("📁 No visited servers file found, starting fresh")
+    end
+end
+
+-- Save visited servers to file
+local function saveVisitedServers()
+    local serverList = {}
+    for serverId, _ in pairs(visitedServers) do
+        table.insert(serverList, serverId)
+    end
+    
+    local success = pcall(function()
+        writefile(VISITED_SERVERS_FILE, table.concat(serverList, ","))
+    end)
+    
+    if success then
+        print("💾 Saved " .. #serverList .. " visited servers to file")
+    else
+        print("❌ Failed to save visited servers")
+    end
+end
+
+-- Add server to visited list
+local function markServerVisited(serverId)
+    visitedServers[serverId] = true
+    saveVisitedServers()
+end
+
+-- Check if server is visited
+local function isServerVisited(serverId)
+    return visitedServers[serverId] == true
+end
+
+-- Clear ALL visited servers (when stuck)
+local function clearAllVisitedServers()
+    visitedServers = {}
+    saveVisitedServers()
+    print("🧹 Cleared ALL visited servers")
+end
+
+-- Load visited servers on startup
+loadVisitedServers()
+
+-- Mark current server as visited
+markServerVisited(game.JobId)
 
 -- Parse value from generation text (e.g., "5.2M/s" -> 5200000)
 local function parseValue(genText)
@@ -77,33 +136,57 @@ local function parseValue(genText)
     end
 end
 
--- 🔍 Get fresh servers (ultra fast with better filtering)
-local function getFreshServers()
-    local freshServers = {}
+-- 🔍 IMPROVED Server Hop Function (avoids visited servers)
+local function findFreshServer()
+    local success, result = pcall(function()
+        local response = game:HttpGet("https://games.roblox.com/v1/games/" .. GAME_ID .. "/servers/Public?sortOrder=Asc&limit=100")
+        return HttpService:JSONDecode(response)
+    end)
     
-    -- Get multiple pages to ensure we have enough variety
-    for page = 1, 5 do
-        local success, result = pcall(function()
-            local cursor = page > 1 and "&cursor=" .. tostring(page * 10) or ""
-            return HttpService:JSONDecode(game:HttpGet("https://games.roblox.com/v1/games/" .. GAME_ID .. "/servers/Public?sortOrder=Random&limit=100" .. cursor))
-        end)
-        
-        if success and result.data then
-            for _, server in pairs(result.data) do
-                if server.id ~= game.JobId and server.playing and server.playing > 1 then
-                    table.insert(freshServers, server.id)
-                end
+    if success and result and result.data then
+        for _, server in ipairs(result.data) do
+            if server.playing and server.playing < 10 and not isServerVisited(server.id) then
+                print("🎯 Found fresh server: " .. server.id .. " (" .. server.playing .. " players)")
+                return server.id
             end
         end
     end
+    return nil
+end
+
+-- Function to teleport to server
+local function teleportToServer(serverId)
+    local success, error = pcall(function()
+        TeleportService:TeleportToPlaceInstance(GAME_ID, serverId, LocalPlayer)
+    end)
     
-    -- Shuffle the array to get random servers
-    for i = #freshServers, 2, -1 do
-        local j = math.random(i)
-        freshServers[i], freshServers[j] = freshServers[j], freshServers[i]
+    if success then
+        print("✅ Successfully teleporting to server:", serverId)
+        markServerVisited(serverId)
+    else
+        print("❌ Failed to teleport:", error)
     end
-    
-    return freshServers
+end
+
+-- 🚀 IMPROVED Server Hop (avoids visited servers)
+local function serverHop()
+    local serverId = findFreshServer()
+    if serverId then
+        teleportToServer(serverId)
+    else
+        print("❌ No fresh servers found, clearing visited servers and trying again...")
+        -- Clear all visited servers to prevent infinite loop
+        clearAllVisitedServers()
+        wait(1)
+        -- Try to find a server again
+        local newServerId = findFreshServer()
+        if newServerId then
+            teleportToServer(newServerId)
+        else
+            print("🔄 Still no servers, using random teleport...")
+            TeleportService:Teleport(GAME_ID)
+        end
+    end
 end
 
 -- Get plot owner name from PlotSign
@@ -236,44 +319,18 @@ function sendWebhook(name, value, numValue, ownerName)
     end)
 end
 
--- 🚀 ULTRA FAST Server Hop (0.05ms target)
-local function ultraFastHop()
-    spawn(function()
-        local freshServers = getFreshServers()
-        
-        -- Don't wait, just hop immediately
-        wait(0.05) -- 0.05ms as requested
-        
-        if #freshServers > 0 then
-            local randomServer = freshServers[math.random(1, #freshServers)]
-            visitedServers[randomServer] = true
-            
-            pcall(function()
-                TeleportService:TeleportToPlaceInstance(GAME_ID, randomServer)
-            end)
-        else
-            -- Fallback to random server
-            pcall(function()
-                TeleportService:Teleport(GAME_ID)
-            end)
-        end
-    end)
-end
-
 -- Handle teleport failures
 TeleportService.TeleportInitFailed:Connect(function(player, teleportResult, errorMessage)
     print("⚠️ Teleport failed, retrying...")
-    wait(0.1)
-    ultraFastHop()
+    wait(2)
+    serverHop()
 end)
 
 -- 🧠 ULTRA FAST MAIN LOOP
 print("🚀 Starting ULTRA FAST brainrot hunter...")
 print("🎯 Targets: " .. table.concat(TARGET_BRAINROTS, ", "))
 print("💰 Minimum value: " .. MIN_VALUE .. " (" .. MIN_VALUE/1000000 .. "M)")
-
--- Mark current server as visited
-visitedServers[game.JobId] = true
+print("📁 Visited servers tracking: ENABLED")
 
 -- Wait minimal time for server to load critical components
 wait(0.5)
@@ -293,6 +350,6 @@ else
     print("❌ No high-value targets found")
 end
 
--- Immediate hop to next server
+-- Improved server hop
 print("🚀 Hopping to next server...")
-ultraFastHop()
+serverHop()
