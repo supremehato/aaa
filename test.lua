@@ -57,9 +57,7 @@ end)
 
 -- 📁 FILE STORAGE FOR VISITED SERVERS
 local visitedServers = {}
-local restrictedServers = {}
 local VISITED_SERVERS_FILE = "visited_servers.txt"
-local RESTRICTED_SERVERS_FILE = "restricted_servers.txt"
 
 -- Load existing visited servers from file
 local function loadVisitedServers()
@@ -74,20 +72,6 @@ local function loadVisitedServers()
         print("📁 Loaded " .. #visitedServers .. " visited servers from file")
     else
         print("📁 No visited servers file found, starting fresh")
-    end
-end
-
--- Load restricted servers from file (SHARED ACROSS ALL ACCOUNTS)
-local function loadRestrictedServers()
-    local success, data = pcall(function()
-        return readfile(RESTRICTED_SERVERS_FILE)
-    end)
-    
-    if success and data then
-        for serverId in string.gmatch(data, "([^,]+)") do
-            restrictedServers[serverId] = true
-        end
-        print("🚫 Loaded " .. #restrictedServers .. " restricted servers from file")
     end
 end
 
@@ -152,7 +136,7 @@ local function parseValue(genText)
     end
 end
 
--- 🔍 IMPROVED Server Hop Function (avoids visited servers + checks if restricted)
+-- 🔍 IMPROVED Server Hop Function (avoids visited servers)
 local function findFreshServer()
     local success, result = pcall(function()
         local response = game:HttpGet("https://games.roblox.com/v1/games/" .. GAME_ID .. "/servers/Public?sortOrder=Asc&limit=100")
@@ -161,8 +145,7 @@ local function findFreshServer()
     
     if success and result and result.data then
         for _, server in ipairs(result.data) do
-            -- Skip if already visited or if it has "isFull" or access restrictions
-            if server.playing and server.playing < 10 and not isServerVisited(server.id) and server.id ~= game.JobId then
+            if server.playing and server.playing < 10 and not isServerVisited(server.id) then
                 print("🎯 Found fresh server: " .. server.id .. " (" .. server.playing .. " players)")
                 return server.id
             end
@@ -171,7 +154,7 @@ local function findFreshServer()
     return nil
 end
 
--- Function to teleport to server (with error 773 handling)
+-- Function to teleport to server
 local function teleportToServer(serverId)
     local success, error = pcall(function()
         TeleportService:TeleportToPlaceInstance(GAME_ID, serverId, LocalPlayer)
@@ -182,11 +165,6 @@ local function teleportToServer(serverId)
         markServerVisited(serverId)
     else
         print("❌ Failed to teleport:", error)
-        -- If it's error 773 (restricted), mark as visited so we don't try again
-        if string.find(tostring(error), "773") then
-            print("🚫 Server is restricted, marking as visited")
-            markServerVisited(serverId)
-        end
     end
 end
 
@@ -341,15 +319,9 @@ function sendWebhook(name, value, numValue, ownerName)
     end)
 end
 
--- Handle teleport failures (including error 773)
+-- Handle teleport failures
 TeleportService.TeleportInitFailed:Connect(function(player, teleportResult, errorMessage)
-    print("⚠️ Teleport failed: " .. tostring(errorMessage))
-    
-    -- If error 773 (restricted), just try another server immediately
-    if string.find(tostring(errorMessage), "773") then
-        print("🚫 Server was restricted, trying another...")
-    end
-    
+    print("⚠️ Teleport failed, retrying...")
     wait(2)
     serverHop()
 end)
