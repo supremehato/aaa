@@ -57,7 +57,9 @@ end)
 
 -- 📁 FILE STORAGE FOR VISITED SERVERS
 local visitedServers = {}
+local restrictedServers = {}
 local VISITED_SERVERS_FILE = "visited_servers.txt"
+local RESTRICTED_SERVERS_FILE = "restricted_servers.txt"
 
 -- Load existing visited servers from file
 local function loadVisitedServers()
@@ -72,6 +74,20 @@ local function loadVisitedServers()
         print("📁 Loaded " .. #visitedServers .. " visited servers from file")
     else
         print("📁 No visited servers file found, starting fresh")
+    end
+end
+
+-- Load restricted servers from file (SHARED ACROSS ALL ACCOUNTS)
+local function loadRestrictedServers()
+    local success, data = pcall(function()
+        return readfile(RESTRICTED_SERVERS_FILE)
+    end)
+    
+    if success and data then
+        for serverId in string.gmatch(data, "([^,]+)") do
+            restrictedServers[serverId] = true
+        end
+        print("🚫 Loaded " .. #restrictedServers .. " restricted servers from file")
     end
 end
 
