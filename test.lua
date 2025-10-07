@@ -9,6 +9,42 @@ local DISCORD_WEBHOOK_URL = "https://discord.com/api/webhooks/141775370371229710
 local GAME_ID = game.PlaceId
 local MIN_VALUE = 10000000 -- 10m minimum value
 
+local TARGET_BRAINROTS = {
+    "Strawberry Elephant",
+    "Ketupat Kepat",
+    "Ketchuru and Musturu",
+    "La Supreme Combinasion",
+    "Burguro And Fryuro",
+    "La Secret Combinasion",
+    "Tralaledon",
+    "TicTac Sahur",
+    "67",
+    "Los 67",
+    "Las Sis",
+    "Money Money Puggy",
+    "Chillin Chili",
+    "Tang Tang Keletang",
+    "Los Bros",
+    "Spaghetti Tualetti",
+    "Esok Sekolah",
+    "Los Hotspotsitos",
+    "Los Combinasionas",
+    "Tacorita Bicicleta",
+    "Pot Hotspot",
+    "Los Nooo My Hotspotsitos",
+    "La Grande Combinasion",
+    "Dragon Cannelloni",
+    "Chicleteira Bicicleteira",
+    "La Extinct Grande",
+    "Garama and Madundung",
+    "Nuclearo Dinossauro"
+}
+
+local TARGET_SET = {}
+for _, target in pairs(TARGET_BRAINROTS) do
+    TARGET_SET[target] = true
+end
+
 for _, v in pairs(getconnections(LocalPlayer.Idled)) do
     v:Disable()
 end
@@ -37,9 +73,9 @@ local function loadVisitedServers()
         for serverId in string.gmatch(data, "([^,]+)") do
             visitedServers[serverId] = true
         end
-        print("Loaded " .. #visitedServers .. " visited servers from file")
+        print("📁 Loaded " .. #visitedServers .. " visited servers from file")
     else
-        print("No visited servers file found, starting fresh")
+        print("📁 No visited servers file found, starting fresh")
     end
 end
 
@@ -57,7 +93,7 @@ local function saveVisitedServers()
     if success then
         print("💾 Saved " .. #serverList .. " visited servers to file")
     else
-        print("Failed to save visited servers")
+        print("❌ Failed to save visited servers")
     end
 end
 
@@ -74,7 +110,7 @@ end
 local function clearAllVisitedServers()
     visitedServers = {}
     saveVisitedServers()
-    print("Cleared ALL visited servers")
+    print("🧹 Cleared ALL visited servers")
 end
 
 loadVisitedServers()
@@ -108,7 +144,7 @@ local function findFreshServer()
     if success and result and result.data then
         for _, server in ipairs(result.data) do
             if server.playing and server.playing < 10 and not isServerVisited(server.id) then
-                print("Found fresh server: " .. server.id .. " (" .. server.playing .. " players)")
+                print("🎯 Found fresh server: " .. server.id .. " (" .. server.playing .. " players)")
                 return server.id
             end
         end
@@ -122,10 +158,10 @@ local function teleportToServer(serverId)
     end)
     
     if success then
-        print("Successfully teleporting to server:", serverId)
+        print("✅ Successfully teleporting to server:", serverId)
         markServerVisited(serverId)
     else
-        print("Failed to teleport:", error)
+        print("❌ Failed to teleport:", error)
     end
 end
 
@@ -134,7 +170,7 @@ local function serverHop()
     if serverId then
         teleportToServer(serverId)
     else
-        print("No fresh servers found, clearing visited servers and trying again...")
+        print("❌ No fresh servers found, clearing visited servers and trying again...")
         -- Clear all visited servers to prevent infinite loop
         clearAllVisitedServers()
         wait(1)
@@ -196,8 +232,8 @@ end
 
 local function ultraFastScan()
     local plots = game.Workspace.Plots:GetChildren()
-    local foundBrainrots = {}
     
+
     for _, plot in pairs(plots) do
         spawn(function()
             local animalPodiums = plot:FindFirstChild("AnimalPodiums")
@@ -217,34 +253,28 @@ local function ultraFastScan()
                         local name = displayName.Text
                         local genText = generation.Text
                         
-                        -- Parse the generation value
-                        local value = parseValue(genText)
-                        
-                        -- Check if value meets minimum threshold
-                        if value >= MIN_VALUE then
-                            -- Get the plot owner's name
-                            local ownerName = getPlotOwner(plot)
+
+                        if TARGET_SET[name] then
+                            local value = parseValue(genText)
                             
-                            print("FOUND: " .. name .. " | " .. genText .. " | Owner: " .. ownerName)
-                            
-                            -- Send webhook
-                            spawn(function()
-                                sendWebhook(name, genText, value, ownerName)
-                            end)
-                            
-                            table.insert(foundBrainrots, {name = name, value = genText, numValue = value, owner = ownerName})
+
+                            if value >= MIN_VALUE then
+                                -- Get the plot owner's name
+                                local ownerName = getPlotOwner(plot)
+                                
+
+                                spawn(function()
+                                    sendWebhook(name, genText, value, ownerName)
+                                end)
+                                return {name = name, value = genText, numValue = value, owner = ownerName}
+                            else
+                                print("🚫 " .. name .. " found but value too low: " .. genText .. " (" .. value .. " < " .. MIN_VALUE .. ")")
+                            end
                         end
                     end
                 end
             end
         end)
-    end
-    
-    -- Wait a moment for all spawned threads to complete
-    wait(0.5)
-    
-    if #foundBrainrots > 0 then
-        return foundBrainrots
     end
     
     return nil
@@ -277,7 +307,7 @@ function sendWebhook(name, value, numValue, ownerName)
         end)
         
         if success then
-            print("Webhook sent: " .. name .. " | " .. value .. " | Owner: " .. ownerName)
+            print("✅ Webhook sent: " .. name .. " | " .. value .. " | Owner: " .. ownerName)
         else
             print("❌ Webhook failed for: " .. name)
         end
@@ -286,36 +316,33 @@ end
 
 -- Handle teleport failures
 TeleportService.TeleportInitFailed:Connect(function(player, teleportResult, errorMessage)
-    print("Teleport failed, retrying...")
+    print("⚠️ Teleport failed, retrying...")
     wait(2)
     serverHop()
 end)
 
--- MAIN LOOP
-print("Starting scanner...")
-print("Scanning for ANY brainrot with 10M+ generation")
-print("Minimum value: " .. MIN_VALUE .. " (" .. MIN_VALUE/1000000 .. "M)")
-print("Visited servers tracking: ENABLED")
+-- 🧠 ULTRA FAST MAIN LOOP
+print("🚀 Starting ULTRA FAST brainrot hunter...")
+print("🎯 Targets: " .. table.concat(TARGET_BRAINROTS, ", "))
+print("💰 Minimum value: " .. MIN_VALUE .. " (" .. MIN_VALUE/1000000 .. "M)")
+print("📁 Visited servers tracking: ENABLED")
 
 -- Wait minimal time for server to load critical components
 wait(0.5)
 
-print("ULTRA SCANNING...")
+print("⚡ ULTRA SCANNING...")
 
 -- Instant scan
 local found = ultraFastScan()
 
-if found and #found > 0 then
-    print("FOUND " .. #found .. " HIGH VALUE BRAINROT(S)!")
-    for _, brainrot in ipairs(found) do
-        print("   - " .. brainrot.name .. " | " .. brainrot.value .. " | Owner: " .. brainrot.owner)
-    end
+if found then
+    print("🎉 HIGH VALUE TARGET FOUND: " .. found.name .. " | " .. found.value)
     print("📍 Server: " .. game.JobId)
     
-    -- Wait a bit before hopping
+
     wait(0.1)
 else
-    print("❌ No high-value brainrots found")
+    print("❌ No high-value targets found")
 end
 
 -- Improved server hop
