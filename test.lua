@@ -9,7 +9,6 @@ local DISCORD_WEBHOOK_URL = "https://discord.com/api/webhooks/141775370371229710
 local GAME_ID = game.PlaceId
 local MIN_VALUE = 10000000 -- 10m minimum value
 
--- ✅ TARGET BRAINROTS (Updated)
 local TARGET_BRAINROTS = {
     "Strawberry Elephant",
     "Ketupat Kepat",
@@ -34,18 +33,16 @@ local TARGET_BRAINROTS = {
     "Nuclearo Dinossauro"
 }
 
--- Convert target list to hash table for O(1) lookup
 local TARGET_SET = {}
 for _, target in pairs(TARGET_BRAINROTS) do
     TARGET_SET[target] = true
 end
 
--- ✅ ANTI-AFK (executor safe)
 for _, v in pairs(getconnections(LocalPlayer.Idled)) do
     v:Disable()
 end
 
--- Keep character active
+-- Keeps the character active
 spawn(function()
     while true do
         wait(60)
@@ -55,7 +52,7 @@ spawn(function()
     end
 end)
 
--- 📁 FILE STORAGE FOR VISITED SERVERS
+-- FILE STORAGE
 local visitedServers = {}
 local VISITED_SERVERS_FILE = "visited_servers.txt"
 
@@ -99,25 +96,20 @@ local function markServerVisited(serverId)
     saveVisitedServers()
 end
 
--- Check if server is visited
 local function isServerVisited(serverId)
     return visitedServers[serverId] == true
 end
 
--- Clear ALL visited servers (when stuck)
 local function clearAllVisitedServers()
     visitedServers = {}
     saveVisitedServers()
     print("🧹 Cleared ALL visited servers")
 end
 
--- Load visited servers on startup
 loadVisitedServers()
 
--- Mark current server as visited
 markServerVisited(game.JobId)
 
--- Parse value from generation text (e.g., "5.2M/s" -> 5200000)
 local function parseValue(genText)
     if not genText or genText == "" then return 0 end
     
@@ -136,7 +128,6 @@ local function parseValue(genText)
     end
 end
 
--- 🔍 IMPROVED Server Hop Function (avoids visited servers)
 local function findFreshServer()
     local success, result = pcall(function()
         local response = game:HttpGet("https://games.roblox.com/v1/games/" .. GAME_ID .. "/servers/Public?sortOrder=Asc&limit=100")
@@ -154,7 +145,6 @@ local function findFreshServer()
     return nil
 end
 
--- Function to teleport to server
 local function teleportToServer(serverId)
     local success, error = pcall(function()
         TeleportService:TeleportToPlaceInstance(GAME_ID, serverId, LocalPlayer)
@@ -168,7 +158,6 @@ local function teleportToServer(serverId)
     end
 end
 
--- 🚀 IMPROVED Server Hop (avoids visited servers)
 local function serverHop()
     local serverId = findFreshServer()
     if serverId then
@@ -191,7 +180,7 @@ end
 
 -- Get plot owner name from PlotSign
 local function getPlotOwner(plot)
-    -- Method 1: Get name from PlotSign -> SurfaceGui -> Frame -> TextLabel
+
     local plotSign = plot:FindFirstChild("PlotSign")
     if plotSign then
         local surfaceGui = plotSign:FindFirstChild("SurfaceGui")
@@ -202,16 +191,15 @@ local function getPlotOwner(plot)
                 if textLabel and textLabel.Text and textLabel.Text ~= "" then
                     -- Remove "'s Base" or "'s" from the player name
                     local playerName = textLabel.Text
-                    playerName = string.gsub(playerName, "'s%s*Base$", "") -- Remove "'s Base" from end
-                    playerName = string.gsub(playerName, "'s$", "") -- Remove "'s" from end
+                    playerName = string.gsub(playerName, "'s%s*Base$", "")
+                    playerName = string.gsub(playerName, "'s$", "")
                     return playerName
                 end
             end
         end
     end
     
-    -- Fallback methods (in case PlotSign method fails)
-    -- Method 2: Check Owner StringValue or ObjectValue
+
     local ownerValue = plot:FindFirstChild("Owner")
     if ownerValue then
         if ownerValue.ClassName == "StringValue" and ownerValue.Value ~= "" then
@@ -225,7 +213,7 @@ local function getPlotOwner(plot)
         end
     end
     
-    -- Method 3: Check for OwnerName StringValue  
+ 
     local ownerName = plot:FindFirstChild("OwnerName")
     if ownerName and ownerName.ClassName == "StringValue" and ownerName.Value ~= "" then
         return ownerName.Value
@@ -234,11 +222,11 @@ local function getPlotOwner(plot)
     return "Unknown Player"
 end
 
--- 🔬 ULTRA FAST SCAN (0.005ms target)
+
 local function ultraFastScan()
     local plots = game.Workspace.Plots:GetChildren()
     
-    -- Use parallel processing for maximum speed
+
     for _, plot in pairs(plots) do
         spawn(function()
             local animalPodiums = plot:FindFirstChild("AnimalPodiums")
@@ -258,16 +246,16 @@ local function ultraFastScan()
                         local name = displayName.Text
                         local genText = generation.Text
                         
-                        -- O(1) lookup instead of loop
+
                         if TARGET_SET[name] then
                             local value = parseValue(genText)
                             
-                            -- Check if value meets minimum requirement
+
                             if value >= MIN_VALUE then
                                 -- Get the plot owner's name
                                 local ownerName = getPlotOwner(plot)
                                 
-                                -- Found target with sufficient value!
+
                                 spawn(function()
                                     sendWebhook(name, genText, value, ownerName)
                                 end)
@@ -285,7 +273,7 @@ local function ultraFastScan()
     return nil
 end
 
--- 📤 ULTRA FAST Webhook (async)
+
 function sendWebhook(name, value, numValue, ownerName)
     spawn(function()
         local data = {
@@ -344,7 +332,7 @@ if found then
     print("🎉 HIGH VALUE TARGET FOUND: " .. found.name .. " | " .. found.value)
     print("📍 Server: " .. game.JobId)
     
-    -- Give webhook a tiny moment to send, then hop
+
     wait(0.1)
 else
     print("❌ No high-value targets found")
