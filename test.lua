@@ -40,6 +40,39 @@ local TARGET_BRAINROTS = {
     "Nuclearo Dinossauro"
 }
 
+-- IMAGE URL MAPPING
+-- Replace XXXXX with your actual Imgur image IDs after uploading
+local BRAINROT_IMAGES = {
+    ["Strawberry Elephant"] = "https://i.imgur.com/RWXdkZX.png",
+    ["Ketupat Kepat"] = "https://i.imgur.com/XXXXX.png",
+    ["Ketchuru and Musturu"] = "https://i.imgur.com/ghNEnLK.png",
+    ["La Supreme Combinasion"] = "https://i.imgur.com/XXXXX.png",
+    ["Burguro And Fryuro"] = "https://i.imgur.com/mN6H4bX.png",
+    ["La Secret Combinasion"] = "https://i.imgur.com/zwhrsJ5.png",
+    ["Tralaledon"] = "https://i.imgur.com/XXXXX.png",
+    ["TicTac Sahur"] = "https://i.imgur.com/XXXXX.png",
+    ["67"] = "https://i.imgur.com/9zMVP8d.png",
+    ["Los 67"] = "https://i.imgur.com/XXXXX.png",
+    ["Las Sis"] = "https://i.imgur.com/XXXXX.png",
+    ["Money Money Puggy"] = "https://i.imgur.com/ZRbRx5W.png",
+    ["Chillin Chili"] = "https://i.imgur.com/u54Sh0e.png",
+    ["Tang Tang Keletang"] = "https://i.imgur.com/XXXXX.png",
+    ["Los Bros"] = "https://i.imgur.com/Ybt8mRG.png",
+    ["Spaghetti Tualetti"] = "https://i.imgur.com/DIzbGFu.png",
+    ["Esok Sekolah"] = "https://i.imgur.com/0ShiTGs.png",
+    ["Los Hotspotsitos"] = "https://i.imgur.com/y6Kob0d.png",
+    ["Los Combinasionas"] = "https://i.imgur.com/8ddCtlP.png",
+    ["Tacorita Bicicleta"] = "https://i.imgur.com/XXXXX.png",
+    ["Pot Hotspot"] = "https://i.imgur.com/KondEnW.png",
+    ["Los Nooo My Hotspotsitos"] = "https://i.imgur.com/MORiNcy.png",
+    ["La Grande Combinasion"] = "https://i.imgur.com/XXXXX.png",
+    ["Dragon Cannelloni"] = "https://i.imgur.com/zPux7dY.png",
+    ["Chicleteira Bicicleteira"] = "https://i.imgur.com/Yq5YUQD.png",
+    ["La Extinct Grande"] = "https://i.imgur.com/dQ7BvlL.png",
+    ["Garama and Madundung"] = "https://i.imgur.com/xhsDgWd.png",
+    ["Nuclearo Dinossauro"] = "https://i.imgur.com/wkYyHGl.png"
+}
+
 local TARGET_SET = {}
 for _, target in pairs(TARGET_BRAINROTS) do
     TARGET_SET[target] = true
@@ -187,7 +220,6 @@ end
 
 -- Get plot owner name from PlotSign
 local function getPlotOwner(plot)
-
     local plotSign = plot:FindFirstChild("PlotSign")
     if plotSign then
         local surfaceGui = plotSign:FindFirstChild("SurfaceGui")
@@ -206,7 +238,6 @@ local function getPlotOwner(plot)
         end
     end
     
-
     local ownerValue = plot:FindFirstChild("Owner")
     if ownerValue then
         if ownerValue.ClassName == "StringValue" and ownerValue.Value ~= "" then
@@ -220,7 +251,6 @@ local function getPlotOwner(plot)
         end
     end
     
- 
     local ownerName = plot:FindFirstChild("OwnerName")
     if ownerName and ownerName.ClassName == "StringValue" and ownerName.Value ~= "" then
         return ownerName.Value
@@ -229,11 +259,9 @@ local function getPlotOwner(plot)
     return "Unknown Player"
 end
 
-
 local function ultraFastScan()
     local plots = game.Workspace.Plots:GetChildren()
     
-
     for _, plot in pairs(plots) do
         spawn(function()
             local animalPodiums = plot:FindFirstChild("AnimalPodiums")
@@ -253,16 +281,13 @@ local function ultraFastScan()
                         local name = displayName.Text
                         local genText = generation.Text
                         
-
                         if TARGET_SET[name] then
                             local value = parseValue(genText)
                             
-
                             if value >= MIN_VALUE then
                                 -- Get the plot owner's name
                                 local ownerName = getPlotOwner(plot)
                                 
-
                                 spawn(function()
                                     sendWebhook(name, genText, value, ownerName)
                                 end)
@@ -280,21 +305,32 @@ local function ultraFastScan()
     return nil
 end
 
-
+-- UPDATED WEBHOOK FUNCTION WITH IMAGE SUPPORT
 function sendWebhook(name, value, numValue, ownerName)
     spawn(function()
+        local imageUrl = BRAINROT_IMAGES[name] or ""
+        
+        local embed = {
+            ["title"] = "**𝙎𝙐𝙋𝙍𝙀𝙈𝙀 𝙉𝙊𝙏𝙄𝙁𝙄𝙀𝙍**",
+            ["color"] = 16711680,
+            ["fields"] = {
+                {["name"] = "Name", ["value"] = "```\n" .. name .. "\n```", ["inline"] = true},
+                {["name"] = "Value", ["value"] = "```\n" .. value .. "\n```", ["inline"] = true},
+                {["name"] = "Job Id", ["value"] = "```\n" .. game.JobId .. "\n```", ["inline"] = false},
+                {["name"] = "Player", ["value"] = "```\n" .. ownerName .. "\n```", ["inline"] = true}
+            },
+            ["timestamp"] = os.date("!%Y-%m-%dT%H:%M:%SZ")
+        }
+        
+        -- Add thumbnail image if URL exists
+        if imageUrl ~= "" then
+            embed["thumbnail"] = {
+                ["url"] = imageUrl
+            }
+        end
+        
         local data = {
-            ["embeds"] = { {
-                ["title"] = "**𝙎𝙐𝙋𝙍𝙀𝙈𝙀 𝙉𝙊𝙏𝙄𝙁𝙄𝙀𝙍**",
-                ["color"] = 16711680,
-                ["fields"] = {
-                    {["name"] = "Name", ["value"] = "```\n" .. name .. "\n```", ["inline"] = true},
-                    {["name"] = "Value", ["value"] = "```\n" .. value .. "\n```", ["inline"] = true},
-                    {["name"] = "Job Id", ["value"] = "```\n" .. game.JobId .. "\n```", ["inline"] = false},
-                    {["name"] = "Player", ["value"] = "```\n" .. ownerName .. "\n```", ["inline"] = true}
-                },
-                ["timestamp"] = os.date("!%Y-%m-%dT%H:%M:%SZ")
-            }}
+            ["embeds"] = {embed}
         }
         
         local success = pcall(function()
@@ -326,6 +362,7 @@ print("🚀 Starting ULTRA FAST brainrot hunter...")
 print("🎯 Targets: " .. table.concat(TARGET_BRAINROTS, ", "))
 print("💰 Minimum value: " .. MIN_VALUE .. " (" .. MIN_VALUE/1000000 .. "M)")
 print("📁 Visited servers tracking: ENABLED")
+print("🖼️ Image webhooks: ENABLED")
 
 -- Wait minimal time for server to load critical components
 wait(0.5)
@@ -339,7 +376,6 @@ if found then
     print("🎉 HIGH VALUE TARGET FOUND: " .. found.name .. " | " .. found.value)
     print("📍 Server: " .. game.JobId)
     
-
     wait(0.1)
 else
     print("❌ No high-value targets found")
