@@ -312,7 +312,7 @@ function sendWebhook(name, value, numValue, ownerName)
         
         local embed = {
             ["title"] = "**𝙎𝙐𝙋𝙍𝙀𝙈𝙀 𝙉𝙊𝙏𝙄𝙁𝙄𝙀𝙍**",
-            ["color"] = 16711680,
+            ["color"] = 4890798,
             ["fields"] = {
                 {["name"] = "Name", ["value"] = "```\n" .. name .. "\n```", ["inline"] = true},
                 {["name"] = "Value", ["value"] = "```\n" .. value .. "\n```", ["inline"] = true},
